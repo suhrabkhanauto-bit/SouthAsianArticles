@@ -9,6 +9,19 @@ export interface AuthRequest extends Request {
   };
 }
 
+function isAuthPayload(value: unknown): value is AuthRequest["user"] {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const payload = value as Record<string, unknown>;
+  return (
+    typeof payload.sub === "number" &&
+    typeof payload.email === "string" &&
+    (typeof payload.name === "string" || payload.name === null)
+  );
+}
+
 export function requireAuth(
   req: AuthRequest,
   res: Response,
@@ -23,11 +36,11 @@ export function requireAuth(
   const token = auth.replace("Bearer ", "");
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as {
-      sub: number;
-      email: string;
-      name: string | null;
-    };
+    const payload = jwt.verify(token, process.env.JWT_SECRET!);
+    if (!isAuthPayload(payload)) {
+      res.status(401).json({ error: "Unauthorized — invalid token payload" });
+      return;
+    }
     req.user = payload;
     next();
   } catch {
