@@ -1,7 +1,7 @@
 // Base URL of the Express backend.
 // In development: http://localhost:3001
-// In production:  set VITE_API_URL to your deployed backend URL (e.g. https://api.yourdomain.com)
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+// In production behind Caddy the frontend and API share the same origin, so "" works.
+const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 function getToken(): string | null {
   try {

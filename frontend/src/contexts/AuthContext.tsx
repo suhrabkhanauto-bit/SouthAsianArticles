@@ -17,7 +17,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 // Base URL of the Express backend — must match VITE_API_URL in your .env
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+// In production behind Caddy the frontend and API share the same origin, so "" works.
+const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

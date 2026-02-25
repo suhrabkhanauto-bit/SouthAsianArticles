@@ -6,9 +6,14 @@ type Channel = "news" | "images" | "reels";
 // In development: ws://localhost:3001/ws-live
 // In production:  set VITE_API_URL=https://api.yourdomain.com → ws(s) is derived automatically
 function buildWsUrl(): string {
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-  // Convert http(s) → ws(s)
-  return apiUrl.replace(/^http/, "ws") + "/ws-live";
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    // Explicit backend URL — convert http(s) → ws(s)
+    return apiUrl.replace(/^http/, "ws") + "/ws-live";
+  }
+  // Production behind Caddy: derive from current page origin
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}/ws-live`;
 }
 
 const WS_BASE = buildWsUrl();
