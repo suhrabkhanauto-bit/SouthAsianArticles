@@ -24,6 +24,10 @@ export default function ProductionLogs() {
   const { data: images, isLoading: imgLoading, error: imgError, refresh: imgRefresh } = useRealtimeData<ManualImageProduction>("images");
   const { data: reels, isLoading: reelLoading, error: reelError, refresh: reelRefresh } = useRealtimeData<Reel>("reels");
 
+  // Only show items with "Done" status
+  const doneImages = images?.filter((img) => img.status?.toLowerCase() === "done") ?? [];
+  const doneReels = reels?.filter((reel) => reel.status?.toLowerCase() === "done") ?? [];
+
   const isLoading = imgLoading || reelLoading;
   const error = imgError || reelError;
 
@@ -43,15 +47,15 @@ export default function ProductionLogs() {
         <Tabs defaultValue="images" className="space-y-4">
           <TabsList className="grid w-full grid-cols-2 h-10">
             <TabsTrigger value="images" className="text-xs gap-1.5">
-              <Image className="h-3.5 w-3.5" /> Images ({images?.length || 0})
+              <Image className="h-3.5 w-3.5" /> Images ({doneImages.length})
             </TabsTrigger>
             <TabsTrigger value="reels" className="text-xs gap-1.5">
-              <Film className="h-3.5 w-3.5" /> Reels ({reels?.length || 0})
+              <Film className="h-3.5 w-3.5" /> Reels ({doneReels.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="images">
-            {images && images.length > 0 ? (
+            {doneImages.length > 0 ? (
               <div className="rounded-xl border bg-card overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -64,7 +68,7 @@ export default function ProductionLogs() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {images.map((img) => (
+                    {doneImages.map((img) => (
                       <TableRow
                         key={img.news_source_id}
                         className="cursor-pointer hover:bg-accent/50 transition-colors"
@@ -106,7 +110,7 @@ export default function ProductionLogs() {
           </TabsContent>
 
           <TabsContent value="reels">
-            {reels && reels.length > 0 ? (
+            {doneReels.length > 0 ? (
               <div className="rounded-xl border bg-card overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -119,7 +123,7 @@ export default function ProductionLogs() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reels.map((reel) => (
+                    {doneReels.map((reel) => (
                       <TableRow
                         key={reel.news_source_id}
                         className="cursor-pointer hover:bg-accent/50 transition-colors"
