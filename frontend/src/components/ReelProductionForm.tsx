@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { saveReelData, triggerVideoGeneration } from "@/lib/api";
+import { saveReelData, triggerVideoGeneration, triggerCoverImageCreation } from "@/lib/api";
 import { NewsSource, Reel } from "@/lib/types";
 import { useRealtimeData } from "@/hooks/useRealtimeData";
 import { FormField } from "@/components/FormField";
@@ -7,7 +7,7 @@ import { ProductionStatusBadge } from "@/components/ProductionStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clapperboard, Save, Download, RefreshCw, Loader2 } from "lucide-react";
+import { Clapperboard, Save, Download, Loader2, ImagePlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Props {
@@ -29,6 +29,7 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
   });
   const [regenerating, setRegenerating] = useState(false);
   const [savingAndGenerating, setSavingAndGenerating] = useState(false);
+  const [creatingCover, setCreatingCover] = useState(false);
   // Tracks if we've already pre-filled the form once — prevents WebSocket pushes from overwriting user edits
   const initializedRef = useRef(false);
 
@@ -53,32 +54,18 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
     }
   }, [existing]);
 
-  const handleRegenerate = async () => {
-    const videoUrl = form.video_url || existing?.video_url;
-    const dimension = form.video_dimension || existing?.video_dimension;
-    const cover = form.reel_cover_image || existing?.reel_cover_image || "";
-    const withoutVoiceOver = existing?.video_without_voice_over || "";
-    if (!videoUrl || !dimension) {
-      toast({ title: "Error", description: "Missing video data. Fill the form first.", variant: "destructive" });
-      return;
-    }
-    setRegenerating(true);
+  const handleCreateCover = async () => {
+    setCreatingCover(true);
     try {
-      console.log(`[Reel] Regenerate: webhook for article ${article.id}`);
-      await triggerVideoGeneration({
-        id: article.id,
-        video_url: videoUrl,
-        video_dimension: dimension,
-        video_without_voice_over: withoutVoiceOver,
-        reel_cover_image: cover,
-      });
-      toast({ title: "Triggered", description: "Video generation webhook called." });
+      console.log(`[Reel] Create Cover: webhook for article ${article.id}`);
+      await triggerCoverImageCreation(article.id);
+      toast({ title: "Triggered", description: "Cover image creation webhook called." });
       refresh();
     } catch (e: any) {
-      console.error("[Reel] Regenerate error:", e);
+      console.error("[Reel] Create Cover error:", e);
       toast({ title: "Webhook Error", description: e.message, variant: "destructive" });
     } finally {
-      setRegenerating(false);
+      setCreatingCover(false);
     }
   };
 
@@ -111,6 +98,7 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
   const isDone = existing?.status === "Done";
   const hasVideoWithoutVO = !!existing?.video_without_voice_over;
   const hasFinalVideo = !!existing?.final_video;
+  const hasCoverDownload = !!existing?.final_reel_cover_download_link;
 
   return (
     <Card>
@@ -164,13 +152,30 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
           placeholder="Enter cover image URL (optional)"
         />
 
+        {/* Create Cover Button */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCreateCover}
+            disabled={creatingCover}
+            className="gap-1.5"
+          >
+            {creatingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+            Create Cover
+          </Button>
+          {hasCoverDownload ? (
+            <Button variant="outline" size="sm" asChild className="gap-1 text-xs h-7">
+              <a href={existing!.final_reel_cover_download_link!} download target="_blank" rel="noopener noreferrer">
+                <Download className="h-3 w-3" /> Download Cover
+              </a>
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">No cover generated yet</span>
+          )}
+        </div>
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2 pt-2">
-          <Button variant="outline" onClick={handleRegenerate} disabled={regenerating || savingAndGenerating || !isValid} className="gap-1.5">
-            {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Regenerate
-          </Button>
-
           <Button onClick={handleSaveAndGenerate} disabled={savingAndGenerating || !isValid} className="gap-1.5">
             {savingAndGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Save & Generate

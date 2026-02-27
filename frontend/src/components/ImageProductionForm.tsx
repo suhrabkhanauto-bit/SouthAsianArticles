@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ImagePlus, Save, Download, RefreshCw, Loader2 } from "lucide-react";
+import { ImagePlus, Save, Download, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const CATEGORY_OPTIONS = [
@@ -35,7 +35,6 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
     image_url: "",
     image_owner_name: "",
   });
-  const [regenerating, setRegenerating] = useState(false);
   const [savingAndGenerating, setSavingAndGenerating] = useState(false);
   // Tracks if we've already pre-filled the form once — prevents WebSocket pushes from overwriting user edits
   const initializedRef = useRef(false);
@@ -60,26 +59,6 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
       });
     }
   }, [existing]);
-
-  const handleRegenerate = async () => {
-    const category = form.catogires || existing?.catogires;
-    if (!category) {
-      toast({ title: "Error", description: "No category found. Fill the form first.", variant: "destructive" });
-      return;
-    }
-    setRegenerating(true);
-    try {
-      console.log(`[Image] Regenerate: webhook for article ${article.id}, category=${category}`);
-      await triggerImageGeneration(article.id, category);
-      toast({ title: "Triggered", description: "Image generation webhook called." });
-      refresh();
-    } catch (e: any) {
-      console.error("[Image] Regenerate error:", e);
-      toast({ title: "Webhook Error", description: e.message, variant: "destructive" });
-    } finally {
-      setRegenerating(false);
-    }
-  };
 
   const handleSaveAndGenerate = async () => {
     if (!isValid) return;
@@ -134,16 +113,6 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={handleRegenerate}
-            disabled={regenerating || savingAndGenerating || !isValid}
-            className="gap-1.5"
-          >
-            {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Regenerate
-          </Button>
-
           <Button
             onClick={handleSaveAndGenerate}
             disabled={savingAndGenerating || !isValid}

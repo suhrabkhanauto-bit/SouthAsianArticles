@@ -10,6 +10,7 @@ router.use(requireAuth);
 const WEBHOOK_PATHS: Record<string, string> = {
   generate_image: "/generate-image-lovable",
   make_video:     "/reels-lovable",
+  own_cover_image: "/own-cover-image",
 };
 
 // POST /proxy-n8n

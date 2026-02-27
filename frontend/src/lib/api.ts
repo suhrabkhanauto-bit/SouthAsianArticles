@@ -120,3 +120,8 @@ export async function updateReelGeneratedUrl(news_source_id: number, final_video
 export async function fetchAllReels() {
   return dbQuery("list_reels");
 }
+
+export async function triggerCoverImageCreation(news_source_id: number) {
+  console.log(`[Webhook] triggerCoverImageCreation called with news_source_id=${news_source_id}`);
+  return proxyN8n("own_cover_image", { news_source_id });
+}
