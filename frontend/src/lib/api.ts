@@ -122,6 +122,6 @@ export async function fetchAllReels() {
 }
 
 export async function triggerCoverImageCreation(news_source_id: number) {
-  console.log(`[Webhook] triggerCoverImageCreation called with news_source_id=${news_source_id}`);
-  return proxyN8n("own_cover_image", { news_source_id });
+  console.log(`[Webhook] triggerCoverImageCreation called with id=${news_source_id}`);
+  return proxyN8n("own_cover_image", { id: news_source_id });
 }
