@@ -90,6 +90,7 @@ export async function fetchAllImages() {
 // === Reel Production ===
 export async function saveReelData(data: {
   news_source_id: number;
+  title?: string;
   video_url: string;
   video_owner_name: string;
   video_dimension: string;
