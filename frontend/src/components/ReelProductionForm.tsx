@@ -70,7 +70,10 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
   const handleCreateCover = async () => {
     setCreatingCover(true);
     try {
-      console.log(`[Reel] Create Cover: webhook for article ${article.id}`);
+      console.log(`[Reel] Create Cover: saving data + webhook for article ${article.id}`);
+      await saveReelData({ news_source_id: article.id, title: article.article_title, ...form });
+      toast({ title: "Saved", description: "Reel data saved." });
+
       await triggerCoverImageCreation(article.id);
       toast({ title: "Triggered", description: "Cover image creation webhook called." });
       refresh();
