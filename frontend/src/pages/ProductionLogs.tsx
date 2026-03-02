@@ -24,9 +24,10 @@ export default function ProductionLogs() {
   const { data: images, isLoading: imgLoading, error: imgError, refresh: imgRefresh } = useRealtimeData<ManualImageProduction>("images");
   const { data: reels, isLoading: reelLoading, error: reelError, refresh: reelRefresh } = useRealtimeData<Reel>("reels");
 
-  // Only show items with "Done" status
+  // Only show items with completed statuses
   const doneImages = images?.filter((img) => img.status?.toLowerCase() === "done") ?? [];
-  const doneReels = reels?.filter((reel) => reel.status?.toLowerCase() === "done") ?? [];
+  const completedReelStatuses = new Set(["done", "cover image created"]);
+  const doneReels = reels?.filter((reel) => completedReelStatuses.has(reel.status?.toLowerCase() ?? "")) ?? [];
 
   const isLoading = imgLoading || reelLoading;
   const error = imgError || reelError;
@@ -139,9 +140,9 @@ export default function ProductionLogs() {
                           <ProductionStatusBadge status={reel.status} />
                         </TableCell>
                         <TableCell>
-                          {reel.final_video ? (
+                          {(reel.final_video || reel.final_reel_cover_download_link) ? (
                             <Button variant="ghost" size="sm" asChild className="gap-1 text-xs h-7 px-2" onClick={(e) => e.stopPropagation()}>
-                              <a href={reel.final_video} target="_blank" rel="noopener noreferrer">
+                              <a href={(reel.final_video || reel.final_reel_cover_download_link)!} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="h-3 w-3" /> Open
                               </a>
                             </Button>

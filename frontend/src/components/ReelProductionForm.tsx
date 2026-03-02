@@ -20,6 +20,20 @@ const DIMENSION_OPTIONS = [
   { value: "landscape 16:9", label: "Landscape 16:9" },
 ];
 
+// Statuses where the VIDEO pipeline is still in-flight (files may be stale/incomplete)
+const VIDEO_PROCESSING_STATUSES = new Set([
+  "Generating",
+  "video without voice over: Created",
+  "Applying overly text",
+  "Applying Voice over",
+]);
+
+// Statuses where the COVER IMAGE pipeline is still in-flight
+const COVER_PROCESSING_STATUSES = new Set([
+  "Creating Cover image",
+  "Saving Cover Image",
+]);
+
 export function ReelProductionForm({ article, onSuccess }: Props) {
   const [form, setForm] = useState({
     video_url: "",
@@ -27,7 +41,6 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
     video_dimension: "",
     reel_cover_image: "",
   });
-  const [regenerating, setRegenerating] = useState(false);
   const [savingAndGenerating, setSavingAndGenerating] = useState(false);
   const [creatingCover, setCreatingCover] = useState(false);
   // Tracks if we've already pre-filled the form once — prevents WebSocket pushes from overwriting user edits
@@ -95,7 +108,12 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
   };
 
   const isValid = form.video_url && form.video_owner_name && form.video_dimension;
-  const isDone = existing?.status === "Done";
+
+  // Phase-aware flags — decouple video vs cover download availability
+  const currentStatus = existing?.status ?? "";
+  const isVideoProcessing = VIDEO_PROCESSING_STATUSES.has(currentStatus);
+  const isCoverProcessing = COVER_PROCESSING_STATUSES.has(currentStatus);
+
   const hasVideoWithoutVO = !!existing?.video_without_voice_over;
   const hasFinalVideo = !!existing?.final_video;
   const hasCoverDownload = !!existing?.final_reel_cover_download_link;
@@ -157,18 +175,20 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
           <Button
             variant="outline"
             onClick={handleCreateCover}
-            disabled={creatingCover}
+            disabled={creatingCover || isVideoProcessing}
             className="gap-1.5"
           >
             {creatingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
             Create Cover
           </Button>
-          {hasCoverDownload ? (
+          {hasCoverDownload && !isCoverProcessing ? (
             <Button variant="outline" size="sm" asChild className="gap-1 text-xs h-7">
               <a href={existing!.final_reel_cover_download_link!} download target="_blank" rel="noopener noreferrer">
                 <Download className="h-3 w-3" /> Download Cover
               </a>
             </Button>
+          ) : isCoverProcessing && existing ? (
+            <span className="text-xs text-muted-foreground">Processing cover…</span>
           ) : (
             <span className="text-xs text-muted-foreground">No cover generated yet</span>
           )}
@@ -176,7 +196,7 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2 pt-2">
-          <Button onClick={handleSaveAndGenerate} disabled={savingAndGenerating || !isValid} className="gap-1.5">
+          <Button onClick={handleSaveAndGenerate} disabled={savingAndGenerating || !isValid || isCoverProcessing} className="gap-1.5">
             {savingAndGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Save & Generate
           </Button>
@@ -191,7 +211,7 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
 
           {/* Video Without Voice Over */}
           <div className="flex items-center gap-2">
-            {hasVideoWithoutVO && isDone ? (
+            {hasVideoWithoutVO && !isVideoProcessing ? (
               <Button variant="outline" size="sm" asChild className="gap-1 text-xs h-7">
                 <a href={existing!.video_without_voice_over!} download target="_blank" rel="noopener noreferrer">
                   <Download className="h-3 w-3" /> Video Without Voice Over
@@ -202,15 +222,16 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
                 <Button variant="outline" size="sm" disabled className="gap-1 text-xs h-7">
                   <Download className="h-3 w-3" /> Video Without Voice Over
                 </Button>
-                {!isDone && existing && <span className="text-xs text-muted-foreground">Processing...</span>}
+                {isVideoProcessing && existing && <span className="text-xs text-muted-foreground">Processing…</span>}
                 {!existing && <span className="text-xs text-muted-foreground">Not generated</span>}
+                {existing && !isVideoProcessing && !hasVideoWithoutVO && <span className="text-xs text-muted-foreground">Not generated</span>}
               </>
             )}
           </div>
 
           {/* Final Video */}
           <div className="flex items-center gap-2">
-            {hasFinalVideo && isDone ? (
+            {hasFinalVideo && !isVideoProcessing ? (
               <Button variant="outline" size="sm" asChild className="gap-1 text-xs h-7">
                 <a href={existing!.final_video!} download target="_blank" rel="noopener noreferrer">
                   <Download className="h-3 w-3" /> Final Video
@@ -221,8 +242,9 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
                 <Button variant="outline" size="sm" disabled className="gap-1 text-xs h-7">
                   <Download className="h-3 w-3" /> Final Video
                 </Button>
-                {!isDone && existing && <span className="text-xs text-muted-foreground">Processing...</span>}
+                {isVideoProcessing && existing && <span className="text-xs text-muted-foreground">Processing…</span>}
                 {!existing && <span className="text-xs text-muted-foreground">Not generated</span>}
+                {existing && !isVideoProcessing && !hasFinalVideo && <span className="text-xs text-muted-foreground">Not generated</span>}
               </>
             )}
           </div>
