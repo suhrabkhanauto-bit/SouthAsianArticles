@@ -62,7 +62,7 @@ export async function fetchAllNews() {
 // === Image Production ===
 export async function saveImageData(data: {
   news_source_id: number;
-  image_for_post: string;
+  image_for_post?: string;
   catogires: string;
   image_url: string;
   image_owner_name: string;

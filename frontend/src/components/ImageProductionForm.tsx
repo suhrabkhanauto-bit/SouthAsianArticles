@@ -28,9 +28,16 @@ interface Props {
   onSuccess: () => void;
 }
 
+// Map category dropdown value → ManualImageProduction column name
+const CATEGORY_TEMPLATE_FIELD: Record<string, keyof ManualImageProduction> = {
+  simple_headline: "simple_headline_template_text",
+  keyword_highlight: "keyword_highlight_template_text",
+  question: "question_template_text",
+  statistic: "statistic_template_text",
+};
+
 export function ImageProductionForm({ article, onSuccess }: Props) {
   const [form, setForm] = useState({
-    image_for_post: "",
     catogires: "",
     image_url: "",
     image_owner_name: "",
@@ -52,7 +59,6 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
     if (existing && !initializedRef.current) {
       initializedRef.current = true;
       setForm({
-        image_for_post: existing.image_for_post || "",
         catogires: existing.catogires || "",
         image_url: existing.image_url || "",
         image_owner_name: existing.image_owner_name || "",
@@ -65,7 +71,7 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
     setSavingAndGenerating(true);
     try {
       console.log(`[Image] Save & Generate: saving + webhook for article ${article.id}`);
-      await saveImageData({ news_source_id: article.id, title: article.article_title, ...form });
+      await saveImageData({ news_source_id: article.id, ...form });
       toast({ title: "Saved", description: "Image data saved." });
 
       await triggerImageGeneration(article.id, form.catogires);
@@ -79,7 +85,11 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
     }
   };
 
-  const isValid = form.image_for_post && form.catogires && form.image_url && form.image_owner_name;
+  const isValid = form.catogires && form.image_url && form.image_owner_name;
+
+  // Dynamic template text based on selected category
+  const templateFieldKey = CATEGORY_TEMPLATE_FIELD[form.catogires];
+  const templateText = templateFieldKey ? (existing?.[templateFieldKey] as string | null) : null;
   const hasDownloadLink = !!existing?.download_link;
   const isDone = existing?.status === "Done";
 
@@ -92,8 +102,6 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <FormField label="Image for Post" value={form.image_for_post} onChange={(v) => setForm({ ...form, image_for_post: v })} placeholder="Enter image for post text" />
-
         <div>
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</label>
           <Select value={form.catogires} onValueChange={(val) => setForm({ ...form, catogires: val })}>
@@ -107,6 +115,22 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Dynamic template text — read-only, appears when a category is selected */}
+        {form.catogires && (
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+              {CATEGORY_OPTIONS.find((o) => o.value === form.catogires)?.label} Template Text
+            </p>
+            {templateText ? (
+              <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words">
+                {templateText}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No template text available yet</p>
+            )}
+          </div>
+        )}
 
         <FormField label="Image URL" value={form.image_url} onChange={(v) => setForm({ ...form, image_url: v })} placeholder="Enter source image URL" />
         <FormField label="Image Owner Name" value={form.image_owner_name} onChange={(v) => setForm({ ...form, image_owner_name: v })} placeholder="Enter image owner name" />

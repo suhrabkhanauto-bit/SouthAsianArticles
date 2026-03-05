@@ -173,6 +173,18 @@ export function ReelProductionForm({ article, onSuccess }: Props) {
           placeholder="Enter cover image URL (optional)"
         />
 
+        {/* Video Overlay Text — read-only from DB */}
+        {existing?.video_overlay_text && (
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+              Video Overlay Text
+            </p>
+            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words">
+              {existing.video_overlay_text}
+            </p>
+          </div>
+        )}
+
         {/* Create Cover Button */}
         <div className="flex flex-wrap items-center gap-2">
           <Button

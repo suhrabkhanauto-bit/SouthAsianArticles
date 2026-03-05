@@ -130,9 +130,16 @@ export default function ArticleDetail() {
       {/* Header Section */}
       <div className="mb-8 space-y-4">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-foreground leading-tight tracking-tight max-w-3xl">
-            {article.article_title}
-          </h1>
+          <div className="max-w-3xl space-y-1.5">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-foreground leading-tight tracking-tight">
+              {article.article_title}
+            </h1>
+            {article.sub_title && (
+              <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+                {article.sub_title}
+              </p>
+            )}
+          </div>
           <div className="shrink-0">
             <StatusBadge status={article.status} />
           </div>

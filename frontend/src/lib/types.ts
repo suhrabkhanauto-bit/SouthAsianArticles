@@ -1,6 +1,7 @@
 export interface NewsSource {
   id: number;
   article_title: string;
+  sub_title: string | null;
   original_news_url: string;
   orignal_news_image_url: string | null;
   source_name: string | null;
