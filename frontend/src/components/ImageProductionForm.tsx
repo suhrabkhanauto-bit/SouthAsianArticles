@@ -71,7 +71,7 @@ export function ImageProductionForm({ article, onSuccess }: Props) {
     setSavingAndGenerating(true);
     try {
       console.log(`[Image] Save & Generate: saving + webhook for article ${article.id}`);
-      await saveImageData({ news_source_id: article.id, ...form });
+      await saveImageData({ news_source_id: article.id, title: article.article_title, ...form });
       toast({ title: "Saved", description: "Image data saved." });
 
       await triggerImageGeneration(article.id, form.catogires);
