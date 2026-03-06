@@ -4,6 +4,7 @@ export interface NewsSource {
   sub_title: string | null;
   original_news_url: string;
   orignal_news_image_url: string | null;
+  new_image: string | null;
   source_name: string | null;
   country: string | null;
   category: string | null;

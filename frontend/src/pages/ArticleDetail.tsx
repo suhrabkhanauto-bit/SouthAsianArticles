@@ -240,6 +240,15 @@ export default function ArticleDetail() {
                 </CardHeader>
                 <CardContent className="pt-6">
                   <div className="grid grid-cols-1 gap-4">
+                    {article.new_image && (
+                      <div className="aspect-video overflow-hidden rounded-xl bg-muted ring-1 ring-border shadow-inner">
+                        <img
+                          src={article.new_image}
+                          alt="Production"
+                          className="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
+                        />
+                      </div>
+                    )}
                     <DetailField label="Main Headline" value={article.rewritten_headline || ""} />
                     <DetailField label="Rewritten Article" value={article.rewritten_article || ""} />
 
