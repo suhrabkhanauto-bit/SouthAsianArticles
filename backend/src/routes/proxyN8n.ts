@@ -13,6 +13,29 @@ const WEBHOOK_PATHS: Record<string, string> = {
   own_cover_image: "/own-cover-image",
 };
 
+// Targets that should return immediately while workflow continues upstream.
+const FAST_ACK_TARGETS = new Set(["generate_image"]);
+
+async function callWebhook(fullUrl: string, params: unknown): Promise<{ status: number; data: unknown }> {
+  const upstream = await fetch(fullUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  const text = await upstream.text();
+  console.log(`[proxy-n8n] response: ${upstream.status} ${text.substring(0, 500)}`);
+
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+
+  return { status: upstream.status, data };
+}
+
 // POST /proxy-n8n
 router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   const { target, params } = req.body;
@@ -30,27 +53,29 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   console.log(`[proxy-n8n] target="${target}" → POST ${fullUrl}`);
   console.log(`[proxy-n8n] params:`, JSON.stringify(params));
 
+  if (FAST_ACK_TARGETS.has(target)) {
+    // Fast path for image generation: acknowledge immediately so UI stays snappy.
+    void callWebhook(fullUrl, params)
+      .then(({ status, data }) => {
+        if (status >= 400) {
+          console.error(`[proxy-n8n] async webhook error ${status}:`, data);
+        }
+      })
+      .catch((e: any) => {
+        console.error("[proxy-n8n] async fetch error:", e?.message || e);
+      });
+
+    res.status(202).json({ accepted: true, target, mode: "async" });
+    return;
+  }
+
   try {
-    const upstream = await fetch(fullUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    });
+    const { status, data } = await callWebhook(fullUrl, params);
 
-    const text = await upstream.text();
-    console.log(`[proxy-n8n] response: ${upstream.status} ${text.substring(0, 500)}`);
-
-    let data: unknown;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!upstream.ok) {
+    if (status >= 400) {
       res
-        .status(upstream.status)
-        .json({ error: `Webhook returned ${upstream.status}`, details: data });
+        .status(status)
+        .json({ error: `Webhook returned ${status}`, details: data });
       return;
     }
 
