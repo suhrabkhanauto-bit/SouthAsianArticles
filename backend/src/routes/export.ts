@@ -36,6 +36,8 @@ const EXPORT_TABLES: TableDef[] = [
   },
 ];
 
+const EXPORT_TABLE_NAMES = EXPORT_TABLES.map((t) => t.name);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function rowsToCsv(rows: Record<string, unknown>[]): string {
@@ -55,6 +57,44 @@ function rowsToCsv(rows: Record<string, unknown>[]): string {
     ...rows.map((row) => headers.map((h) => escape(row[h])).join(",")),
   ];
   return lines.join("\n");
+}
+
+function waitForResponseFinish(res: Response): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let finished = false;
+
+    res.once("finish", () => {
+      finished = true;
+      resolve();
+    });
+
+    res.once("close", () => {
+      if (!finished) {
+        reject(new Error("Client disconnected before export download completed"));
+      }
+    });
+
+    res.once("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
+async function clearExportedTables(): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `TRUNCATE TABLE ${EXPORT_TABLE_NAMES.join(", ")} RESTART IDENTITY CASCADE`
+    );
+    await client.query("COMMIT");
+    console.log(`[export] Cleared tables after download: ${EXPORT_TABLE_NAMES.join(", ")}`);
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 // ─── GET /export/stats ────────────────────────────────────────────────────────
@@ -137,7 +177,10 @@ router.get("/download", async (req: AuthRequest, res: Response): Promise<void> =
     archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
 
     await archive.finalize();
+    await waitForResponseFinish(res);
     console.log(`[export] ZIP streamed as "${filename}"`);
+
+    await clearExportedTables();
   } catch (e: any) {
     console.error("[export/download] query error:", e.message);
     if (!res.headersSent) {
