@@ -37,6 +37,7 @@ const EXPORT_TABLES: TableDef[] = [
 ];
 
 const EXPORT_TABLE_NAMES = EXPORT_TABLES.map((t) => t.name);
+const CLEAR_AFTER_EXPORT_TABLES = EXPORT_TABLE_NAMES.filter((name) => name !== "users");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,12 +84,18 @@ function waitForResponseFinish(res: Response): Promise<void> {
 async function clearExportedTables(): Promise<void> {
   const client = await pool.connect();
   try {
+    if (CLEAR_AFTER_EXPORT_TABLES.length === 0) {
+      return;
+    }
+
     await client.query("BEGIN");
     await client.query(
-      `TRUNCATE TABLE ${EXPORT_TABLE_NAMES.join(", ")} RESTART IDENTITY CASCADE`
+      `TRUNCATE TABLE ${CLEAR_AFTER_EXPORT_TABLES.join(", ")} RESTART IDENTITY CASCADE`
     );
     await client.query("COMMIT");
-    console.log(`[export] Cleared tables after download: ${EXPORT_TABLE_NAMES.join(", ")}`);
+    console.log(
+      `[export] Cleared tables after download: ${CLEAR_AFTER_EXPORT_TABLES.join(", ")} (users preserved)`
+    );
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
