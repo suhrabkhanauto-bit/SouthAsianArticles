@@ -60,25 +60,46 @@ function rowsToCsv(rows: Record<string, unknown>[]): string {
   return lines.join("\n");
 }
 
-function waitForResponseFinish(res: Response): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let finished = false;
+async function buildExportZipBuffer(): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  const archive = archiver("zip", { zlib: { level: 6 } });
 
-    res.once("finish", () => {
-      finished = true;
-      resolve();
-    });
+  archive.on("warning", (err) => {
+    if (err.code !== "ENOENT") throw err;
+  });
 
-    res.once("close", () => {
-      if (!finished) {
-        reject(new Error("Client disconnected before export download completed"));
-      }
-    });
+  archive.on("data", (chunk: Buffer) => {
+    chunks.push(Buffer.from(chunk));
+  });
 
-    res.once("error", (err) => {
-      reject(err);
+  const zipReady = new Promise<Buffer>((resolve, reject) => {
+    archive.on("error", reject);
+    archive.on("end", () => {
+      resolve(Buffer.concat(chunks));
     });
   });
+
+  const client = await pool.connect();
+  try {
+    for (const table of EXPORT_TABLES) {
+      const result = await client.query(table.sql, table.values);
+      const csv = rowsToCsv(result.rows as Record<string, unknown>[]);
+      archive.append(csv || "", { name: `${table.name}.csv` });
+      console.log(`[export] ${table.name}: ${result.rows.length} rows`);
+    }
+
+    const manifest = {
+      exported_at: new Date().toISOString(),
+      window_days: 30,
+      tables: EXPORT_TABLES.map((t) => t.name),
+    };
+    archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
+
+    await archive.finalize();
+    return await zipReady;
+  } finally {
+    client.release();
+  }
 }
 
 async function clearExportedTables(): Promise<void> {
@@ -148,53 +169,20 @@ router.get("/download", async (req: AuthRequest, res: Response): Promise<void> =
   const dateTag = new Date().toISOString().slice(0, 10);
   const filename = `content-studio-export-${dateTag}.zip`;
 
-  res.setHeader("Content-Type", "application/zip");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-  const archive = archiver("zip", { zlib: { level: 6 } });
-
-  archive.on("warning", (err) => {
-    if (err.code !== "ENOENT") throw err;
-  });
-
-  archive.on("error", (err) => {
-    console.error("[export/download] archive error:", err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Archive error" });
-    }
-  });
-
-  archive.pipe(res);
-
-  const client = await pool.connect();
   try {
-    for (const table of EXPORT_TABLES) {
-      const result = await client.query(table.sql, table.values);
-      const csv = rowsToCsv(result.rows as Record<string, unknown>[]);
-      archive.append(csv || "", { name: `${table.name}.csv` });
-      console.log(`[export] ${table.name}: ${result.rows.length} rows`);
-    }
-
-    // Add a manifest
-    const manifest = {
-      exported_at: new Date().toISOString(),
-      window_days: 30,
-      tables: EXPORT_TABLES.map((t) => t.name),
-    };
-    archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
-
-    await archive.finalize();
-    await waitForResponseFinish(res);
-    console.log(`[export] ZIP streamed as "${filename}"`);
-
+    const zipBuffer = await buildExportZipBuffer();
     await clearExportedTables();
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", String(zipBuffer.byteLength));
+    res.status(200).end(zipBuffer);
+    console.log(`[export] ZIP sent as "${filename}" and data cleared`);
   } catch (e: any) {
-    console.error("[export/download] query error:", e.message);
+    console.error("[export/download] error:", e.message);
     if (!res.headersSent) {
       res.status(500).json({ error: e.message || "Export failed" });
     }
-  } finally {
-    client.release();
   }
 });
 
