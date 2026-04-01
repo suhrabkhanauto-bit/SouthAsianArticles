@@ -19,6 +19,12 @@ const ACTIONS: Record<string, (p: any) => { sql: string; values: any[] }> = {
     values: [],
   }),
 
+  // Backward-compatible alias used by some frontend builds.
+  list_news_light: () => ({
+    sql: `SELECT * FROM news_sources ORDER BY COALESCE(published_date, created_at) DESC`,
+    values: [],
+  }),
+
   // ── Images ────────────────────────────────────────────────────────────────
   list_images: () => ({
     sql: `SELECT * FROM manual_image_production ORDER BY created_at DESC`,
